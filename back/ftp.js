@@ -171,7 +171,7 @@ This server configuration let you use this command :
                     fileTransferServer.close(() => { console.log("\nTransfer is done!") });
                 })
             })
-            fileTransferServer.listen(8000, '0.0.0.0');
+            fileTransferServer.listen(8000);
         }
     }
 }

@@ -3,6 +3,8 @@ import { argv, log } from '../common/utils'
 import readLine from 'readline'
 import fs from 'fs'
 import path from 'path'
+import { isAllowedCommand, isAllowLoggedCommands } from '../common/utils'
+
 
 class FtpClient {
 
@@ -38,28 +40,27 @@ class FtpClient {
             input: process.stdin
         })
         rl.on('line', (input) => {
-            this.socket.write(input)
-
             let [cmd, ...args] = input.split(" ");
-            if (cmd == "RETR") this.retrieveData({filename: args[0]});
+            if (isAllowedCommand(cmd) || isAllowLoggedCommands(cmd)){
+                this.socket.write(input)    
+                if (cmd == "RETR"){
+                        this.retrieveData({filename: args[0]});
+                } 
+            }
 
             rl.close();
         })
     }
 
-
-    // retrieveData(filename) {
     retrieveData({filename}) {
-        let remote_server;
-
-        let dataSocket = remote_server ? net.connect(8000, remote_server) : net.connect(8000);
-
         let dirname = "client/receivedFiles/";
         if (!fs.existsSync(dirname)) fs.mkdirSync(dirname);
-
+        
         let ostream = fs.createWriteStream(`client/receivedFiles/${filename}`);
-
+        
         let date = new Date(), size = 0, elapsed;
+        
+        let dataSocket = net.connect(8000)
 
         dataSocket.on('data', chunk => {
             size += chunk.length;
@@ -70,10 +71,13 @@ class FtpClient {
         });
 
         dataSocket.on("end", () => {
-            console.log(`\nFinished getting file. speed was: ${((size / (1024 * 1024)) / (elapsed / 1000)).toFixed(2)} MB/s`);
+            this.socket.write(`\nFinished getting file. speed was: ${((size / (1024 * 1024)) / (elapsed / 1000)).toFixed(2)} MB/s`);
             ostream.close();
-            process.exit();
         });
+        dataSocket.on('error', () => {
+            this.socket.write(`\nConnection failed`)
+            ostream.close();
+        })
     }
 }
 
