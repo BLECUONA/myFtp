@@ -4,6 +4,7 @@ import fs from 'fs'
 import { isAllowedCommand, isAllowLoggedCommands } from '../common/utils'
 import { Server } from './server'
 import { exec } from 'child_process'
+import * as net from 'net'
 
 class FtpServer extends Server {
 
@@ -110,13 +111,13 @@ This server configuration let you use this command :
     }
 
     cwd(socket, directory) {
-        if (directory != '..'){
+        if (directory != '..') {
             const temp_dir = path.join(socket.session.pwd, directory)
             let root_dir = socket.session.directory.split('/')
             root_dir.pop()
             const temp_dir_root = path.join(root_dir.join('/'), temp_dir)
 
-            if(fs.existsSync(temp_dir_root)){
+            if (fs.existsSync(temp_dir_root)) {
                 socket.session.pwd = temp_dir
                 socket.write(`Change directory to ${temp_dir}`)
             } else {
@@ -124,7 +125,7 @@ This server configuration let you use this command :
             }
         } else {
             let temp_dir = socket.session.pwd
-            if (path.join('/', socket.session.username) == temp_dir){
+            if (path.join('/', socket.session.username) == temp_dir) {
                 socket.write("You're on the top of your directory")
             } else {
                 temp_dir = temp_dir.split('/')
@@ -143,6 +144,35 @@ This server configuration let you use this command :
 
         socket.session.directory = tmpPath
         socket.session.pwd = `/${username}`
+    }
+
+    retr(socket, filename) {
+
+        const user = dbUser.find(user => socket.session.username === user.username)
+
+        if (!fs.existsSync(`share/${user.username}/files/${filename}`)) {
+            socket.write(`${filename} doesn\'t exist`)
+        }
+        else {
+            const istream = fs.createReadStream(`share/${user.username}/files/${filename}`);
+
+            let fileTransferServer = net.createServer(dataSocket => {
+                dataSocket.pipe(process.stdout);
+                istream.on("readable", function () {
+                    let data;
+                    while (data = this.read()) {
+                        dataSocket.write(data);
+                    }
+                })
+                istream.on("end", function(){
+                    dataSocket.end();
+                })
+                dataSocket.on("end", () => {
+                    fileTransferServer.close(() => { console.log("\nTransfer is done!") });
+                })
+            })
+            fileTransferServer.listen(8000, '0.0.0.0');
+        }
     }
 }
 
