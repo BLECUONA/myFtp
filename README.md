@@ -1,5 +1,6 @@
 # myFtp
 
+[![License](https://img.shields.io/github/license/Ipicky22/myFtp.svg)](https://github.com/Ipicky22/myFtp)
 
 ## Getting started :sunglasses:
 
